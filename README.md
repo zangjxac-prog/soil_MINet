@@ -3,7 +3,7 @@
 该项目提供一个将微生物属丰度序列视为“句子”的 GPT-2 风格语言模型训练示例。主要思路：
 
 - 每个样本是一条序列，序列中的 token 为“微生物属”。
-- 按照丰度从高到低排序生成 token 顺序，对应模型的位置编码。
+- 按照丰度从高到低排序生成 token 顺序，并将丰度数值编码后融合到位置编码中。
 - 使用 GPT-2 类似的 Transformer 解码器结构进行自回归语言模型训练。
 
 ## 数据格式
@@ -47,7 +47,7 @@ python -m soil_minet.train \
 
 ## 训练逻辑说明
 
-- 使用 `soil_minet.data.encode_sample` 将样本按丰度排序并生成 token 序列。
-- 使用 `soil_minet.model.GPTModel` 进行 GPT-2 风格的自回归训练。
+- 使用 `soil_minet.data.encode_sample` 将样本按丰度排序并生成 token 序列与丰度值。
+- 使用 `soil_minet.model.GPTModel` 将丰度嵌入与位置/词嵌入相加进行 GPT-2 风格的自回归训练。
 
 如需调整模型层数、头数或嵌入维度，可通过命令行参数 `--n-layers`、`--n-heads`、`--n-embd` 控制。

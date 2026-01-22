@@ -108,41 +108,49 @@ def encode_sample(
     sample: Dict[str, float],
     vocab: Vocab,
     max_tokens: int | None = None,
-) -> List[int]:
+) -> Tuple[List[int], List[float]]:
     sorted_items = sorted(sample.items(), key=lambda item: item[1], reverse=True)
     token_ids = [vocab.bos_id]
-    for genus, _abundance in sorted_items:
+    abundances = [0.0]
+    for genus, abundance in sorted_items:
         token_ids.append(vocab.token_to_id.get(genus, vocab.unk_id))
+        abundances.append(float(abundance))
     token_ids.append(vocab.eos_id)
+    abundances.append(0.0)
     if max_tokens is not None:
         token_ids = token_ids[:max_tokens]
-    return token_ids
+        abundances = abundances[:max_tokens]
+    return token_ids, abundances
 
 
 def make_lm_features(
     token_ids: List[int],
+    abundances: List[float],
     block_size: int,
     pad_id: int,
-) -> Tuple[List[int], List[int], List[int]]:
+) -> Tuple[List[int], List[int], List[int], List[float]]:
     if len(token_ids) < 2:
         raise ValueError("Need at least 2 tokens for language modeling.")
     input_ids = token_ids[:-1]
     labels = token_ids[1:]
+    abundance_values = abundances[:-1]
     attention_mask = [1] * len(input_ids)
 
     if len(input_ids) > block_size:
         input_ids = input_ids[:block_size]
         labels = labels[:block_size]
         attention_mask = attention_mask[:block_size]
+        abundance_values = abundance_values[:block_size]
 
     pad_len = block_size - len(input_ids)
     if pad_len > 0:
         input_ids.extend([pad_id] * pad_len)
         labels.extend([-100] * pad_len)
         attention_mask.extend([0] * pad_len)
+        abundance_values.extend([0.0] * pad_len)
 
     position_ids = list(range(block_size))
-    return input_ids, labels, attention_mask, position_ids
+    return input_ids, labels, attention_mask, position_ids, abundance_values
 
 
 class MicrobiomeDataset:
@@ -155,13 +163,14 @@ class MicrobiomeDataset:
         return len(self.samples)
 
     def __getitem__(self, index: int) -> Dict[str, List[int]]:
-        token_ids = encode_sample(self.samples[index], self.vocab)
-        input_ids, labels, attention_mask, position_ids = make_lm_features(
-            token_ids, self.block_size, self.vocab.pad_id
+        token_ids, abundances = encode_sample(self.samples[index], self.vocab)
+        input_ids, labels, attention_mask, position_ids, abundance_values = make_lm_features(
+            token_ids, abundances, self.block_size, self.vocab.pad_id
         )
         return {
             "input_ids": input_ids,
             "labels": labels,
             "attention_mask": attention_mask,
             "position_ids": position_ids,
+            "abundance_values": abundance_values,
         }

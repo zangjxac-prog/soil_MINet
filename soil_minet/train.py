@@ -14,7 +14,8 @@ def collate_batch(batch: List[Dict[str, List[int]]]) -> Dict[str, torch.Tensor]:
     keys = batch[0].keys()
     output = {}
     for key in keys:
-        output[key] = torch.tensor([item[key] for item in batch], dtype=torch.long)
+        dtype = torch.float if key == "abundance_values" else torch.long
+        output[key] = torch.tensor([item[key] for item in batch], dtype=dtype)
     return output
 
 
@@ -48,6 +49,7 @@ def train(args: argparse.Namespace) -> None:
                 batch["input_ids"],
                 attention_mask=batch["attention_mask"],
                 position_ids=batch["position_ids"],
+                abundance_values=batch["abundance_values"],
                 labels=batch["labels"],
             )
             if loss is None:
